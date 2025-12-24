@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+
+# Certificates and private keys
+backend/certs/
+*.pem
