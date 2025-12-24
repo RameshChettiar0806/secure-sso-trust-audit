@@ -131,6 +131,49 @@ def verify_certificate_against_root_ca(issuer_cert_path: str,
     return validate_certificate_chain(issuer_cert, root_ca_cert)
 
 
+def verify_idp_certificate(idp_cert, root_cert):
+    """
+    Verify that the IdP certificate is properly signed by the Root CA.
+    
+    This enforces trust by validating:
+    1. Issuer matches Root CA subject
+    2. Signature is cryptographically valid
+    3. IdP cert is not a CA (proper basic constraints)
+    
+    Args:
+        idp_cert: IdP certificate object
+        root_cert: Root CA certificate object
+        
+    Returns:
+        True if validation succeeds
+        
+    Raises:
+        Exception if validation fails
+    """
+    # 1. Verify issuer
+    if idp_cert.issuer != root_cert.subject:
+        raise Exception("IdP certificate issuer mismatch")
+
+    # 2. Verify signature
+    root_public_key = root_cert.public_key()
+    root_public_key.verify(
+        idp_cert.signature,
+        idp_cert.tbs_certificate_bytes,
+        padding.PKCS1v15(),
+        idp_cert.signature_hash_algorithm,
+    )
+
+    # 3. Basic constraints check
+    bc = idp_cert.extensions.get_extension_for_class(
+        x509.BasicConstraints
+    ).value
+
+    if bc.ca:
+        raise Exception("IdP certificate must not be a CA")
+
+    return True
+
+
 def generate_root_ca():
     """
     Generate a self-signed Root CA certificate.
